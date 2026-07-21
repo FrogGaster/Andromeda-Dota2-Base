@@ -324,67 +324,63 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 		NextVisionCheckTime = CurrentTime + 100ull;
 		CachedSource = EVisionWarningSource::None;
 
-		const auto EnemyVisibilityBit = 1 << EnemyTeam;
-		const auto VisibilityMask = pLocalHero->m_iTaggedAsVisibleByTeam();
-		const auto IsVisibleToEnemy = ( VisibilityMask & EnemyVisibilityBit ) != 0;
 		auto HeroInRange = false;
 		auto WardInRange = false;
-		auto OtherUnitInRange = false;
+		auto HeroCount = 0;
+		auto WardCount = 0;
+		auto pLocalSceneNode = pLocalHero->m_pGameSceneNode();
+		using GetCurrentVisionRangeFn = int( __fastcall* )( C_DOTA_BaseNPC* );
+		auto GetCurrentVisionRange = reinterpret_cast<GetCurrentVisionRangeFn>( dota_npc_get_current_vision_range.GetFunction() );
 
-		if ( IsVisibleToEnemy )
+		if ( pLocalSceneNode )
 		{
-			auto pLocalSceneNode = pLocalHero->m_pGameSceneNode();
-			using GetCurrentVisionRangeFn = int( __fastcall* )( C_DOTA_BaseNPC* );
-			auto GetCurrentVisionRange = reinterpret_cast<GetCurrentVisionRangeFn>( dota_npc_get_current_vision_range.GetFunction() );
+			const auto LocalPosition = pLocalSceneNode->m_vecAbsOrigin();
 
-			if ( pLocalSceneNode )
+			for ( auto EntityIndex = 0; EntityIndex < MAX_TOTAL_ENTITIES && !( HeroInRange && WardInRange ); ++EntityIndex )
 			{
-				const auto LocalPosition = pLocalSceneNode->m_vecAbsOrigin();
+				auto pEntity = pEntitySystem->GetBaseEntity<C_BaseEntity>( EntityIndex );
 
-				for ( auto EntityIndex = 0; EntityIndex < MAX_TOTAL_ENTITIES && !( HeroInRange && WardInRange ); ++EntityIndex )
+				if ( !pEntity || pEntity == pLocalHero || pEntity->m_iTeamNum() != EnemyTeam ||
+					!IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC" ) ) )
 				{
-					auto pEntity = pEntitySystem->GetBaseEntity<C_BaseEntity>( EntityIndex );
-
-					if ( !pEntity || pEntity == pLocalHero || pEntity->m_iTeamNum() != EnemyTeam ||
-						!IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC" ) ) )
-					{
-						continue;
-					}
-
-					auto pUnit = reinterpret_cast<C_DOTA_BaseNPC*>( pEntity );
-
-					if ( pUnit->m_lifeState() != 0 )
-						continue;
-
-					auto pSceneNode = pUnit->m_pGameSceneNode();
-
-					if ( !pSceneNode )
-						continue;
-
-					const auto SourcePosition = pSceneNode->m_vecAbsOrigin();
-					const auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) :
-						( std::max )( pUnit->m_iDayTimeVisionRange() , pUnit->m_iNightTimeVisionRange() );
-
-					if ( !IsInsideVisionRange( SourcePosition , LocalPosition , VisionRange ) )
-						continue;
-
-					auto pIdentity = pEntity->pEntityIdentity();
-
-					if ( IsObserverWard( pEntity , pIdentity ) )
-						WardInRange = true;
-					else if ( IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Hero" ) ) )
-						HeroInRange = true;
-					else
-						OtherUnitInRange = true;
+					continue;
 				}
+
+				auto pIdentity = pEntity->pEntityIdentity();
+				const auto IsWard = IsObserverWard( pEntity , pIdentity );
+				const auto IsHero = !IsWard && IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Hero" ) );
+
+				if ( !IsWard && !IsHero )
+					continue;
+
+				auto pUnit = reinterpret_cast<C_DOTA_BaseNPC*>( pEntity );
+
+				if ( pUnit->m_lifeState() != 0 )
+					continue;
+
+				if ( IsWard )
+					++WardCount;
+				else
+					++HeroCount;
+
+				auto pSceneNode = pUnit->m_pGameSceneNode();
+
+				if ( !pSceneNode )
+					continue;
+
+				const auto SourcePosition = pSceneNode->m_vecAbsOrigin();
+				const auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) :
+					( std::max )( pUnit->m_iDayTimeVisionRange() , pUnit->m_iNightTimeVisionRange() );
+
+				if ( !IsInsideVisionRange( SourcePosition , LocalPosition , VisionRange ) )
+					continue;
+
+				if ( IsWard )
+					WardInRange = true;
+				else
+					HeroInRange = true;
 			}
 		}
-
-		// Hidden enemy wards are not always present in the local entity list. If the
-		// server confirms enemy vision and no other vision provider is nearby, treat
-		// the source as an observer ward.
-		if ( IsVisibleToEnemy && !HeroInRange && !WardInRange && !OtherUnitInRange )
-			WardInRange = true;
 
 		if ( HeroInRange && WardInRange )
 			CachedSource = EVisionWarningSource::HeroAndWard;
@@ -405,8 +401,8 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 
 		if ( CurrentTime >= NextDiagnosticTime )
 		{
-			DEV_LOG( "[EnemyVisionWarning] visibility_mask=%i enemy_bit=%i hero=%i ward=%i other=%i source=%i\n" ,
-				VisibilityMask , EnemyVisibilityBit , HeroInRange , WardInRange , OtherUnitInRange , static_cast<int>( CachedSource ) );
+			DEV_LOG( "[EnemyVisionWarning] heroes=%i wards=%i hero_in_range=%i ward_in_range=%i source=%i vision_fn=%i\n" ,
+				HeroCount , WardCount , HeroInRange , WardInRange , static_cast<int>( CachedSource ) , GetCurrentVisionRange != nullptr );
 			NextDiagnosticTime = CurrentTime + 3000ull;
 		}
 	}
