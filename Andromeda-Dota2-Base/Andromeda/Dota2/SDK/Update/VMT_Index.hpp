@@ -12,4 +12,8 @@ namespace SDK::VMT_Index
 		GetLocalPlayer = 22 ,
 		GetScreenSize = 60,
 	};
+	enum C_DOTA_BaseNPC : int
+	{
+		GetDamageMin = 369,
+	};
 }

@@ -82,6 +82,12 @@ public:
 class C_DOTA_BaseNPC : public C_BaseModelEntity
 {
 public:
+	auto GetDamageMin() -> int
+	{
+		VirtualFn( int )( C_DOTA_BaseNPC* );
+		return vget< Fn >( this , SDK::VMT_Index::C_DOTA_BaseNPC::GetDamageMin )( this );
+	}
+
 	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageMin" , m_iDamageMin , int32 );
 	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageMax" , m_iDamageMax , int32 );
 	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageBonus" , m_iDamageBonus , int32 );
