@@ -54,7 +54,7 @@ namespace
 
 	auto GetMinimumPhysicalAttackDamage( C_DOTA_BaseNPC_Hero* pHero , C_DOTA_BaseNPC* pTarget , CEntityIdentity* pTargetIdentity ) -> int
 	{
-		const auto RawDamage = static_cast<float>( std::max( 0 , pHero->m_iDamageMin() + pHero->m_iDamageBonus() ) );
+		const auto RawDamage = static_cast<float>( ( std::max )( 0 , pHero->m_iDamageMin() + pHero->m_iDamageBonus() ) );
 		const auto Armor = pTarget->m_flPhysicalArmorValue();
 		const auto ArmorMultiplier = 1.f - ( 0.06f * Armor ) / ( 1.f + 0.06f * std::abs( Armor ) );
 
@@ -64,7 +64,7 @@ namespace
 		if ( szUnitName && std::strstr( szUnitName , "siege" ) )
 			UnitMultiplier = 0.5f;
 
-		return std::max( 0 , static_cast<int>( std::floor( RawDamage * ArmorMultiplier * UnitMultiplier ) ) );
+		return ( std::max )( 0 , static_cast<int>( std::floor( RawDamage * ArmorMultiplier * UnitMultiplier ) ) );
 	}
 }
 
@@ -140,7 +140,7 @@ auto CAndromedaClient::RenderLastHitMarkers() -> void
 		return;
 
 	const auto LocalTeam = pLocalHero->m_iTeamNum();
-	const auto HighestEntityIndex = std::min( std::max( pEntitySystem->GetHighestEntityIndex() , 0 ) , MAX_TOTAL_ENTITIES - 1 );
+	const auto HighestEntityIndex = ( std::min )( ( std::max )( pEntitySystem->GetHighestEntityIndex() , 0 ) , MAX_TOTAL_ENTITIES - 1 );
 	const auto DisplaySize = ImGui::GetIO().DisplaySize;
 	auto pDrawList = ImGui::GetBackgroundDrawList();
 
@@ -176,7 +176,7 @@ auto CAndromedaClient::RenderLastHitMarkers() -> void
 		if ( !std::isfinite( MarkerPosition.m_x ) || !std::isfinite( MarkerPosition.m_y ) || !std::isfinite( MarkerPosition.m_z ) )
 			continue;
 
-		MarkerPosition.m_z += std::max( 100.f , static_cast<float>( pCreep->m_iHealthBarOffset() ) + 15.f );
+		MarkerPosition.m_z += ( std::max )( 100.f , static_cast<float>( pCreep->m_iHealthBarOffset() ) + 15.f );
 
 		ImVec2 ScreenPosition{};
 
