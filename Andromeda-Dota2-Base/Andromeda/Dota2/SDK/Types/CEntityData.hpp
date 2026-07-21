@@ -93,6 +93,9 @@ public:
 	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageBonus" , m_iDamageBonus , int32 );
 	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iHealthBarOffset" , m_iHealthBarOffset , int32 );
 	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_flPhysicalArmorValue" , m_flPhysicalArmorValue , float32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iTaggedAsVisibleByTeam" , m_iTaggedAsVisibleByTeam , int32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDayTimeVisionRange" , m_iDayTimeVisionRange , int32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iNightTimeVisionRange" , m_iNightTimeVisionRange , int32 );
 };
 
 class C_DOTA_BaseNPC_Hero : public C_DOTA_BaseNPC

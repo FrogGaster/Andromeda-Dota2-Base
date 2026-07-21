@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <string>
 
 #include <ImGui/imgui.h>
 
@@ -21,6 +22,17 @@ static CAndromedaClient g_CAndromedaClient{};
 namespace
 {
 	constexpr auto DORMANT_ENTITY_FLAG = 1u << 7;
+	constexpr auto DOTA_TEAM_RADIANT = 2;
+	constexpr auto DOTA_TEAM_DIRE = 3;
+	constexpr auto VISION_SOURCE_DISTANCE_PADDING = 96.f;
+
+	enum class EVisionWarningSource : uint8_t
+	{
+		None,
+		Hero,
+		Ward,
+		HeroAndWard,
+	};
 
 	auto IsClassOrDerivedFrom( CEntityInstance* pEntity , const char* szClassName ) -> bool
 	{
@@ -66,6 +78,29 @@ namespace
 
 		return ( std::max )( 0 , static_cast<int>( std::floor( RawDamage * ArmorMultiplier * UnitMultiplier ) ) );
 	}
+
+	auto IsObserverWard( CEntityInstance* pEntity , CEntityIdentity* pIdentity ) -> bool
+	{
+		if ( IsClassOrDerivedFrom( pEntity , XorStr( "CDOTA_NPC_Observer_Ward" ) ) ||
+			IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_NPC_Observer_Ward" ) ) )
+		{
+			return true;
+		}
+
+		const auto szUnitName = pIdentity ? pIdentity->DesingerName().String() : nullptr;
+		return szUnitName && std::strcmp( szUnitName , XorStr( "npc_dota_observer_wards" ) ) == 0;
+	}
+
+	auto IsInsideVisionRange( const Vector3& SourcePosition , const Vector3& TargetPosition , int VisionRange ) -> bool
+	{
+		if ( VisionRange <= 0 )
+			return false;
+
+		const auto DeltaX = SourcePosition.m_x - TargetPosition.m_x;
+		const auto DeltaY = SourcePosition.m_y - TargetPosition.m_y;
+		const auto PaddedVisionRange = static_cast<float>( VisionRange ) + VISION_SOURCE_DISTANCE_PADDING;
+		return DeltaX * DeltaX + DeltaY * DeltaY <= PaddedVisionRange * PaddedVisionRange;
+	}
 }
 
 auto CAndromedaClient::OnInit() -> void
@@ -91,6 +126,9 @@ auto CAndromedaClient::OnInit() -> void
 	if ( Math::Init() )
 		DEV_LOG( "[WorldToScreen] Found !\n" );
 
+	if ( dota_npc_get_current_vision_range.Search() )
+		DEV_LOG( "[dota_npc_get_current_vision_range] Found !\n" );
+
 }
 
 auto CAndromedaClient::SetCameraDistance( float Distance ) -> void
@@ -113,6 +151,9 @@ auto CAndromedaClient::OnRender() -> void
 {
 	if ( Settings::Visuals::LastHitMarker )
 		RenderLastHitMarkers();
+
+	if ( Settings::Visuals::EnemyVisionWarning )
+		RenderEnemyVisionWarning();
 
 	if ( GetAndromedaGUI()->IsVisible() )
 		GetAndromedaMenu()->OnRenderMenu();
@@ -245,6 +286,156 @@ auto CAndromedaClient::RenderLastHitMarkers() -> void
 		DEV_LOG( "[LastHitMarker] total_min_damage=%i entities=%i creeps=%i targets=%i on_screen=%i red=%i yellow=%i green=%i drawn=%i\n" , MinimumRawDamage , EntityCount , CreepCount , TargetCount , OnScreenCount , RedCount , YellowCount , GreenCount , DrawnCount );
 		NextDiagnosticTime = CurrentTime + 3000ull;
 	}
+}
+
+auto CAndromedaClient::RenderEnemyVisionWarning() -> void
+{
+	auto pEntitySystem = SDK::Interfaces::GameEntitySystem();
+
+	if ( !pEntitySystem || !ImGui::GetCurrentContext() )
+		return;
+
+	auto pLocalController = CGameEntitySystem::GetLocalPlayerController();
+
+	if ( !pLocalController )
+		return;
+
+	const auto LocalHeroHandle = pLocalController->m_hAssignedHero();
+	auto pLocalHero = LocalHeroHandle.Get<C_DOTA_BaseNPC_Hero>();
+
+	if ( !IsResolvedHandleValid( LocalHeroHandle , pLocalHero ) || pLocalHero->m_lifeState() != 0 )
+		return;
+
+	const auto LocalTeam = static_cast<int>( pLocalHero->m_iTeamNum() );
+	const auto EnemyTeam = LocalTeam == DOTA_TEAM_RADIANT ? DOTA_TEAM_DIRE : LocalTeam == DOTA_TEAM_DIRE ? DOTA_TEAM_RADIANT : 0;
+
+	if ( EnemyTeam == 0 )
+		return;
+
+	static auto CachedSource = EVisionWarningSource::None;
+	static auto PreviousSource = EVisionWarningSource::None;
+	static auto NextVisionCheckTime = 0ull;
+	static auto NotificationEndTime = 0ull;
+	static auto NextDiagnosticTime = 0ull;
+	const auto CurrentTime = GetTickCount64();
+
+	if ( CurrentTime >= NextVisionCheckTime )
+	{
+		NextVisionCheckTime = CurrentTime + 100ull;
+		CachedSource = EVisionWarningSource::None;
+
+		const auto EnemyVisibilityBit = 1 << EnemyTeam;
+		const auto VisibilityMask = pLocalHero->m_iTaggedAsVisibleByTeam();
+		const auto IsVisibleToEnemy = ( VisibilityMask & EnemyVisibilityBit ) != 0;
+		auto HeroInRange = false;
+		auto WardInRange = false;
+		auto OtherUnitInRange = false;
+
+		if ( IsVisibleToEnemy )
+		{
+			auto pLocalSceneNode = pLocalHero->m_pGameSceneNode();
+			using GetCurrentVisionRangeFn = int( __fastcall* )( C_DOTA_BaseNPC* );
+			auto GetCurrentVisionRange = reinterpret_cast<GetCurrentVisionRangeFn>( dota_npc_get_current_vision_range.GetFunction() );
+
+			if ( pLocalSceneNode )
+			{
+				const auto LocalPosition = pLocalSceneNode->m_vecAbsOrigin();
+
+				for ( auto EntityIndex = 0; EntityIndex < MAX_TOTAL_ENTITIES && !( HeroInRange && WardInRange ); ++EntityIndex )
+				{
+					auto pEntity = pEntitySystem->GetBaseEntity<C_BaseEntity>( EntityIndex );
+
+					if ( !pEntity || pEntity == pLocalHero || pEntity->m_iTeamNum() != EnemyTeam ||
+						!IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC" ) ) )
+					{
+						continue;
+					}
+
+					auto pUnit = reinterpret_cast<C_DOTA_BaseNPC*>( pEntity );
+
+					if ( pUnit->m_lifeState() != 0 )
+						continue;
+
+					auto pSceneNode = pUnit->m_pGameSceneNode();
+
+					if ( !pSceneNode )
+						continue;
+
+					const auto SourcePosition = pSceneNode->m_vecAbsOrigin();
+					const auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) :
+						( std::max )( pUnit->m_iDayTimeVisionRange() , pUnit->m_iNightTimeVisionRange() );
+
+					if ( !IsInsideVisionRange( SourcePosition , LocalPosition , VisionRange ) )
+						continue;
+
+					auto pIdentity = pEntity->pEntityIdentity();
+
+					if ( IsObserverWard( pEntity , pIdentity ) )
+						WardInRange = true;
+					else if ( IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Hero" ) ) )
+						HeroInRange = true;
+					else
+						OtherUnitInRange = true;
+				}
+			}
+		}
+
+		// Hidden enemy wards are not always present in the local entity list. If the
+		// server confirms enemy vision and no other vision provider is nearby, treat
+		// the source as an observer ward.
+		if ( IsVisibleToEnemy && !HeroInRange && !WardInRange && !OtherUnitInRange )
+			WardInRange = true;
+
+		if ( HeroInRange && WardInRange )
+			CachedSource = EVisionWarningSource::HeroAndWard;
+		else if ( WardInRange )
+			CachedSource = EVisionWarningSource::Ward;
+		else if ( HeroInRange )
+			CachedSource = EVisionWarningSource::Hero;
+
+		if ( CachedSource != EVisionWarningSource::None )
+		{
+			NotificationEndTime = CurrentTime + 750ull;
+
+			if ( PreviousSource == EVisionWarningSource::None || PreviousSource != CachedSource )
+				MessageBeep( MB_ICONEXCLAMATION );
+		}
+
+		PreviousSource = CachedSource;
+
+		if ( CurrentTime >= NextDiagnosticTime )
+		{
+			DEV_LOG( "[EnemyVisionWarning] visibility_mask=%i enemy_bit=%i hero=%i ward=%i other=%i source=%i\n" ,
+				VisibilityMask , EnemyVisibilityBit , HeroInRange , WardInRange , OtherUnitInRange , static_cast<int>( CachedSource ) );
+			NextDiagnosticTime = CurrentTime + 3000ull;
+		}
+	}
+
+	if ( CachedSource == EVisionWarningSource::None && CurrentTime >= NotificationEndTime )
+		return;
+
+	std::string WarningText = XorStr( "ENEMY VISION" );
+
+	if ( CachedSource == EVisionWarningSource::Hero )
+		WarningText = XorStr( "ENEMY VISION: HERO" );
+	else if ( CachedSource == EVisionWarningSource::Ward )
+		WarningText = XorStr( "ENEMY VISION: OBSERVER WARD" );
+	else if ( CachedSource == EVisionWarningSource::HeroAndWard )
+		WarningText = XorStr( "ENEMY VISION: HERO + WARD" );
+
+	const auto DisplaySize = ImGui::GetIO().DisplaySize;
+	const auto TextSize = ImGui::CalcTextSize( WarningText.c_str() );
+	const ImVec2 Padding( 20.f , 11.f );
+	const ImVec2 BoxMin( DisplaySize.x * 0.5f - TextSize.x * 0.5f - Padding.x , 70.f );
+	const ImVec2 BoxMax( DisplaySize.x * 0.5f + TextSize.x * 0.5f + Padding.x , 70.f + TextSize.y + Padding.y * 2.f );
+	const ImVec2 TextPosition( DisplaySize.x * 0.5f - TextSize.x * 0.5f , BoxMin.y + Padding.y );
+	auto pDrawList = ImGui::GetBackgroundDrawList();
+	const auto Pulse = 0.75f + 0.25f * std::sin( static_cast<float>( CurrentTime ) * 0.008f );
+	const auto Red = static_cast<int>( 220.f + 35.f * Pulse );
+
+	pDrawList->AddRectFilled( BoxMin , BoxMax , IM_COL32( 35 , 8 , 8 , 225 ) , 7.f );
+	pDrawList->AddRect( BoxMin , BoxMax , IM_COL32( Red , 55 , 45 , 255 ) , 7.f , 0 , 2.f );
+	pDrawList->AddText( TextPosition , IM_COL32( 255 , 225 , 215 , 255 ) , WarningText.c_str() );
 }
 
 auto CAndromedaClient::OnCreateMove( CDOTAInput* pCDOTAInput , CUserCmd* pCUserCmd ) -> void

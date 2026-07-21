@@ -11,6 +11,7 @@ namespace Settings
 	namespace Visuals
 	{
 		inline auto LastHitMarker = true;
+		inline auto EnemyVisionWarning = true;
 	}
 	namespace Menu
 	{

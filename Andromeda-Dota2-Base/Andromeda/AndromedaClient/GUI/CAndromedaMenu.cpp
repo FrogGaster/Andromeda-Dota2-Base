@@ -20,6 +20,7 @@ auto CAndromedaMenu::OnRenderMenu() -> void
 		if ( ImGui::CollapsingHeader( XorStr( "Visuals" ) ) )
 		{
 			RenderCheckBox( XorStr( "Last Hit Marker" ) , XorStr( "##Visuals.LastHitMarker" ) , Settings::Visuals::LastHitMarker );
+			RenderCheckBox( XorStr( "Enemy Vision Warning" ) , XorStr( "##Visuals.EnemyVisionWarning" ) , Settings::Visuals::EnemyVisionWarning );
 		}
 		if ( ImGui::CollapsingHeader( XorStr( "Camera" ) ) )
 		{
