@@ -32,6 +32,8 @@ typedef float vec_t;
 
 namespace Math
 {
+	auto Init() -> bool;
+
 	auto WorldToScreen( const Vector3& vIn , ImVec2& vOut ) -> bool;
 	auto WorldToScreen( const Vector3& vIn , Vector2& vOut ) -> bool;
 	auto WorldToScreen( const Vector3& vIn , Vector3& vOut ) -> bool;

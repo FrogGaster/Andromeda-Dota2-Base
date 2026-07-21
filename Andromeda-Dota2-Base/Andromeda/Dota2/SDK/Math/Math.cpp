@@ -3,55 +3,81 @@
 #include <cmath>
 #include <ImGui/imgui_internal.h>
 
+#include <Dota2/CBasePattern.hpp>
+#include <Dota2/SDK/SDK.hpp>
+
+namespace
+{
+    using WorldToScreenFn = bool( __fastcall* )( Vector3* , int* , int* , const Vector3* );
+
+    CBasePattern g_WorldToScreenPattern =
+    {
+        XorStr( "WorldToScreen" ) ,
+        XorStr( "40 53 56 57 48 83 EC 60 49 8B F8 48 8B F2 48 8B D9 4D 85 C9 74 ? F3 0F 10 01" ) ,
+        XorStr( CLIENT_DLL )
+    };
+
+    WorldToScreenFn g_WorldToScreen = nullptr;
+
+    auto ProjectWorldPosition( const Vector3& vIn , int& x , int& y ) -> bool
+    {
+        if ( !g_WorldToScreen )
+            return false;
+
+        auto Position = vIn;
+        return g_WorldToScreen( &Position , &x , &y , nullptr );
+    }
+}
+
 namespace Math
 {
+    auto Init() -> bool
+    {
+        if ( !g_WorldToScreenPattern.Search() )
+            return false;
+
+        g_WorldToScreen = reinterpret_cast<WorldToScreenFn>( g_WorldToScreenPattern.GetFunction() );
+        return g_WorldToScreen != nullptr;
+    }
+
     auto WorldToScreen( const Vector3& vIn , ImVec2& vOut ) -> bool
     {
-        auto ret = false;
+        auto x = 0;
+        auto y = 0;
 
-        Vector3 Out;
+        if ( !ProjectWorldPosition( vIn , x , y ) )
+            return false;
 
-        /*ret = !( ScreenTransform(vIn , Out) );
-
-        if ( ImGui::GetCurrentContext() )
-        {
-            vOut.x = ( ( Out.m_x + 1.0f ) * 0.5f ) * ImGui::GetIO().DisplaySize.x;
-            vOut.y = ImGui::GetIO().DisplaySize.y - ( ( ( Out.m_y + 1.0f ) * 0.5f ) * ImGui::GetIO().DisplaySize.y );
-        }*/
-
-        return ret;
+        vOut.x = static_cast<float>( x );
+        vOut.y = static_cast<float>( y );
+        return true;
     }
 
     auto WorldToScreen( const Vector3& vIn , Vector2& vOut ) -> bool
     {
-        auto ret = false; 
+        auto x = 0;
+        auto y = 0;
 
-        Vector3 Out;
+        if ( !ProjectWorldPosition( vIn , x , y ) )
+            return false;
 
-        /*ret = !( ScreenTransform(vIn , Out) );
-
-        if ( ImGui::GetCurrentContext() )
-        {
-            vOut.m_x = ( ( Out.m_x + 1.0f ) * 0.5f ) * ImGui::GetIO().DisplaySize.x;
-            vOut.m_y = ImGui::GetIO().DisplaySize.y - ( ( ( Out.m_y + 1.0f ) * 0.5f ) * ImGui::GetIO().DisplaySize.y );
-        }*/
-
-        return ret;
+        vOut.m_x = static_cast<float>( x );
+        vOut.m_y = static_cast<float>( y );
+        return true;
     }
 
     auto WorldToScreen( const Vector3& vIn , Vector3& vOut ) -> bool
     {
-        auto ret = false;
-        
-        /*ret = !( ScreenTransform(vIn , vOut) );
+        auto x = 0;
+        auto y = 0;
 
-        if ( ImGui::GetCurrentContext() )
-        {
-            vOut.m_x = ( ( vOut.m_x + 1.0f ) * 0.5f ) * ImGui::GetIO().DisplaySize.x;
-            vOut.m_y = ImGui::GetIO().DisplaySize.y - ( ( ( vOut.m_y + 1.0f ) * 0.5f ) * ImGui::GetIO().DisplaySize.y );
-        }*/
+        if ( !ProjectWorldPosition( vIn , x , y ) )
+            return false;
 
-        return ret;
+        vOut.m_x = static_cast<float>( x );
+        vOut.m_y = static_cast<float>( y );
+        vOut.m_z = 0.f;
+        return true;
     }
 
     auto AngleNormalize( float angle ) -> float

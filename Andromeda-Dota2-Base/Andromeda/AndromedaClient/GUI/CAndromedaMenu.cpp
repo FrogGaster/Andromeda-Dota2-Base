@@ -17,6 +17,10 @@ auto CAndromedaMenu::OnRenderMenu() -> void
 
 	if ( ImGui::Begin( XorStr( CHEAT_NAME ) , 0 ) )
 	{
+		if ( ImGui::CollapsingHeader( XorStr( "Visuals" ) ) )
+		{
+			RenderCheckBox( XorStr( "Last Hit Marker" ) , XorStr( "##Visuals.LastHitMarker" ) , Settings::Visuals::LastHitMarker );
+		}
 		if ( ImGui::CollapsingHeader( XorStr( "Camera" ) ) )
 		{
 			if ( RenderSliderFloat( XorStr( "Distance" ) , XorStr( "##Camera.Distance" ) , Settings::Camera::Distance , 1200.f , 3000.f ) )

@@ -8,6 +8,10 @@ namespace Settings
 	{
 		inline auto Distance = 1200.f; // Default
 	}
+	namespace Visuals
+	{
+		inline auto LastHitMarker = true;
+	}
 	namespace Menu
 	{
 		inline auto MenuAlpha = 200;

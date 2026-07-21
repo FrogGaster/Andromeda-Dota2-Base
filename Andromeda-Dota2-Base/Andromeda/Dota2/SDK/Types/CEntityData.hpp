@@ -33,6 +33,7 @@ public:
 public:
 	SCHEMA_OFFSET( "CEntityIdentity" , "m_name" , Name , CUtlSymbolLarge );
 	SCHEMA_OFFSET( "CEntityIdentity" , "m_designerName" , DesingerName , CUtlSymbolLarge );
+	SCHEMA_OFFSET( "CEntityIdentity" , "m_flags" , m_flags , uint32 );
 
 private:
 	PAD( 0x70 );
@@ -55,9 +56,19 @@ public:
 	SCHEMA_OFFSET( "CEntityInstance" , "m_pEntity" , pEntityIdentity , CEntityIdentity* );
 };
 
+class CGameSceneNode
+{
+public:
+	SCHEMA_OFFSET( "CGameSceneNode" , "m_vecAbsOrigin" , m_vecAbsOrigin , Vector3 );
+};
+
 class C_BaseEntity : public CEntityInstance
 {
 public:
+	SCHEMA_OFFSET( "C_BaseEntity" , "m_pGameSceneNode" , m_pGameSceneNode , CGameSceneNode* );
+	SCHEMA_OFFSET( "C_BaseEntity" , "m_iMaxHealth" , m_iMaxHealth , int32 );
+	SCHEMA_OFFSET( "C_BaseEntity" , "m_iHealth" , m_iHealth , int32 );
+	SCHEMA_OFFSET( "C_BaseEntity" , "m_lifeState" , m_lifeState , uint8 );
 	SCHEMA_OFFSET( "C_BaseEntity" , "m_iTeamNum" , m_iTeamNum , uint8 );
 };
 
@@ -71,6 +82,11 @@ public:
 class C_DOTA_BaseNPC : public C_BaseModelEntity
 {
 public:
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageMin" , m_iDamageMin , int32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageMax" , m_iDamageMax , int32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iDamageBonus" , m_iDamageBonus , int32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_iHealthBarOffset" , m_iHealthBarOffset , int32 );
+	SCHEMA_OFFSET( "C_DOTA_BaseNPC" , "m_flPhysicalArmorValue" , m_flPhysicalArmorValue , float32 );
 };
 
 class C_DOTA_BaseNPC_Hero : public C_DOTA_BaseNPC

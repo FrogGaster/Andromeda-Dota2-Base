@@ -22,6 +22,7 @@ public:
 
 public:
 	auto SetCameraDistance( float Distance ) -> void;
+	auto RenderLastHitMarkers() -> void;
 
 public:
 	virtual void OnRender() override;
