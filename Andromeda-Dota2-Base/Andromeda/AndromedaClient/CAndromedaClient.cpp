@@ -140,16 +140,28 @@ auto CAndromedaClient::RenderLastHitMarkers() -> void
 		return;
 
 	const auto LocalTeam = pLocalHero->m_iTeamNum();
-	const auto HighestEntityIndex = ( std::min )( ( std::max )( pEntitySystem->GetHighestEntityIndex() , 0 ) , MAX_TOTAL_ENTITIES - 1 );
 	const auto DisplaySize = ImGui::GetIO().DisplaySize;
 	auto pDrawList = ImGui::GetBackgroundDrawList();
+	auto EntityCount = 0;
+	auto CreepCount = 0;
+	auto TargetCount = 0;
+	auto OnScreenCount = 0;
+	auto LethalCount = 0;
+	auto DrawnCount = 0;
 
-	for ( auto EntityIndex = 0; EntityIndex <= HighestEntityIndex; ++EntityIndex )
+	for ( auto EntityIndex = 0; EntityIndex < MAX_TOTAL_ENTITIES; ++EntityIndex )
 	{
 		auto pEntity = pEntitySystem->GetBaseEntity<C_BaseEntity>( EntityIndex );
 
-		if ( !pEntity || pEntity == pLocalHero || !IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Creep" ) ) )
+		if ( !pEntity )
 			continue;
+
+		++EntityCount;
+
+		if ( pEntity == pLocalHero || !IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Creep" ) ) )
+			continue;
+
+		++CreepCount;
 
 		auto pIdentity = pEntity->pEntityIdentity();
 
@@ -161,11 +173,9 @@ auto CAndromedaClient::RenderLastHitMarkers() -> void
 		if ( pCreep->m_lifeState() != 0 || pCreep->m_iHealth() <= 0 || pCreep->m_iTeamNum() == LocalTeam )
 			continue;
 
+		++TargetCount;
+
 		const auto AttackDamage = GetMinimumPhysicalAttackDamage( pLocalHero , pCreep , pIdentity );
-
-		if ( AttackDamage <= 0 || pCreep->m_iHealth() > AttackDamage )
-			continue;
-
 		auto pSceneNode = pCreep->m_pGameSceneNode();
 
 		if ( !pSceneNode )
@@ -186,14 +196,36 @@ auto CAndromedaClient::RenderLastHitMarkers() -> void
 		if ( ScreenPosition.x < -16.f || ScreenPosition.y < -16.f || ScreenPosition.x > DisplaySize.x + 16.f || ScreenPosition.y > DisplaySize.y + 16.f )
 			continue;
 
+		++OnScreenCount;
+
+		if ( AttackDamage <= 0 || pCreep->m_iHealth() > AttackDamage )
+			continue;
+
+		++LethalCount;
 		ScreenPosition.y -= 6.f;
 
-		const ImVec2 LeftPoint( ScreenPosition.x - 7.f , ScreenPosition.y - 7.f );
-		const ImVec2 RightPoint( ScreenPosition.x + 7.f , ScreenPosition.y - 7.f );
-		const ImVec2 BottomPoint( ScreenPosition.x , ScreenPosition.y + 6.f );
+		const ImVec2 LeftPoint( ScreenPosition.x - 6.f , ScreenPosition.y + 8.f );
+		const ImVec2 RightPoint( ScreenPosition.x + 6.f , ScreenPosition.y + 8.f );
+		const ImVec2 BottomPoint( ScreenPosition.x , ScreenPosition.y + 15.f );
+		const ImVec2 TextSize = ImGui::CalcTextSize( XorStr( "LH" ) );
+		const ImVec2 TextPosition( ScreenPosition.x - TextSize.x * 0.5f , ScreenPosition.y - TextSize.y * 0.5f );
 
-		pDrawList->AddTriangleFilled( LeftPoint , RightPoint , BottomPoint , IM_COL32( 255 , 210 , 45 , 240 ) );
-		pDrawList->AddTriangle( LeftPoint , RightPoint , BottomPoint , IM_COL32( 15 , 15 , 15 , 245 ) , 2.f );
+		pDrawList->AddCircleFilled( ScreenPosition , 12.f , IM_COL32( 10 , 10 , 10 , 245 ) , 24 );
+		pDrawList->AddCircleFilled( ScreenPosition , 9.f , IM_COL32( 90 , 230 , 95 , 245 ) , 24 );
+		pDrawList->AddTriangleFilled( LeftPoint , RightPoint , BottomPoint , IM_COL32( 10 , 10 , 10 , 245 ) );
+		pDrawList->AddTriangleFilled( ImVec2( LeftPoint.x + 2.f , LeftPoint.y ) , ImVec2( RightPoint.x - 2.f , RightPoint.y ) , ImVec2( BottomPoint.x , BottomPoint.y - 3.f ) , IM_COL32( 90 , 230 , 95 , 245 ) );
+		pDrawList->AddText( TextPosition , IM_COL32( 10 , 10 , 10 , 255 ) , XorStr( "LH" ) );
+		++DrawnCount;
+	}
+
+	static auto NextDiagnosticTime = 0ull;
+	const auto CurrentTime = GetTickCount64();
+
+	if ( CurrentTime >= NextDiagnosticTime )
+	{
+		const auto MinimumRawDamage = ( std::max )( 0 , pLocalHero->m_iDamageMin() + pLocalHero->m_iDamageBonus() );
+		DEV_LOG( "[LastHitMarker] raw_damage=%i entities=%i creeps=%i targets=%i on_screen=%i lethal=%i drawn=%i\n" , MinimumRawDamage , EntityCount , CreepCount , TargetCount , OnScreenCount , LethalCount , DrawnCount );
+		NextDiagnosticTime = CurrentTime + 3000ull;
 	}
 }
 
