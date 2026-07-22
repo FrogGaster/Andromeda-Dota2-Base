@@ -1,3 +1,7 @@
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+
 #include "CInjector.h"
 
 #include <BlackBone/Process/Process.h>
@@ -44,7 +48,7 @@ namespace
 
 		const auto FileSize = static_cast<std::streamoff>( File.tellg() );
 
-		if ( FileSize <= 0 || static_cast<unsigned long long>( FileSize ) > std::numeric_limits<size_t>::max() )
+		if ( FileSize <= 0 || static_cast<unsigned long long>( FileSize ) > ( std::numeric_limits<size_t>::max )() )
 			return false;
 
 		Data.resize( static_cast<size_t>( FileSize ) );
@@ -213,7 +217,7 @@ namespace
 
 			const auto SectionStart = static_cast<unsigned long long>( Section.VirtualAddress );
 			const auto SectionSize = static_cast<unsigned long long>(
-				std::max( Section.Misc.VirtualSize , Section.SizeOfRawData ) );
+				( std::max )( Section.Misc.VirtualSize , Section.SizeOfRawData ) );
 			const auto SectionEnd = SectionStart + SectionSize;
 
 			if ( Rva >= SectionStart && Rva < SectionEnd )
