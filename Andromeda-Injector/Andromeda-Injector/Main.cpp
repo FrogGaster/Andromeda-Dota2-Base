@@ -16,21 +16,8 @@ auto __forceinline PrintMessage( const char* fmt , ... ) -> void
 
 int main( int argm , char** argv )
 {
-	if ( argm != 2 )
-	{
-		DEV_LOG( "[info] Usage: %s <--dry-run|--inject>\n" , argv[0] );
-		return 2;
-	}
-
-	if ( _stricmp( argv[1] , "--dry-run" ) == 0 )
+	if ( argm > 1 && _stricmp( argv[1] , "--dry-run" ) == 0 )
 		return GetInjector()->DryRun( "dota2.exe" ) ? 0 : 1;
-
-	if ( _stricmp( argv[1] , "--inject" ) != 0 )
-	{
-		DEV_LOG( "[error] Unknown argument: %s\n" , argv[1] );
-		DEV_LOG( "[info] Usage: %s <--dry-run|--inject>\n" , argv[0] );
-		return 2;
-	}
 
 	if ( !GetInjector()->Init() )
 	{
