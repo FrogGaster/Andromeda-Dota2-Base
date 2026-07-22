@@ -336,6 +336,10 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 		NextVisionCheckTime = CurrentTime + 100ull;
 		CachedSource = EVisionWarningSource::None;
 
+		const auto TaggedVisibleMask = pLocalHero->m_iTaggedAsVisibleByTeam();
+		const auto EnemyTeamBit = ( 1 << EnemyTeam );
+		const auto IsSpottedByEnemyTeam = ( TaggedVisibleMask & EnemyTeamBit ) != 0;
+
 		auto HeroInRange = false;
 		auto WardInRange = false;
 		auto HeroCount = 0;
@@ -348,7 +352,7 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 		{
 			const auto LocalPosition = pLocalSceneNode->m_vecAbsOrigin();
 
-			for ( auto EntityIndex = 0; EntityIndex < MAX_TOTAL_ENTITIES && !( HeroInRange && WardInRange ); ++EntityIndex )
+			for ( auto EntityIndex = 0; EntityIndex < MAX_TOTAL_ENTITIES; ++EntityIndex )
 			{
 				auto pEntity = pEntitySystem->GetBaseEntity<C_BaseEntity>( EntityIndex );
 
@@ -406,12 +410,27 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 			}
 		}
 
-		if ( HeroInRange && WardInRange )
+		if ( IsSpottedByEnemyTeam )
+		{
+			if ( HeroInRange && WardInRange )
+				CachedSource = EVisionWarningSource::HeroAndWard;
+			else if ( WardInRange )
+				CachedSource = EVisionWarningSource::Ward;
+			else
+				CachedSource = EVisionWarningSource::Hero;
+		}
+		else if ( HeroInRange && WardInRange )
+		{
 			CachedSource = EVisionWarningSource::HeroAndWard;
+		}
 		else if ( WardInRange )
+		{
 			CachedSource = EVisionWarningSource::Ward;
+		}
 		else if ( HeroInRange )
+		{
 			CachedSource = EVisionWarningSource::Hero;
+		}
 
 		if ( CachedSource != EVisionWarningSource::None )
 		{
@@ -425,8 +444,8 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 
 		if ( CurrentTime >= NextDiagnosticTime )
 		{
-			DEV_LOG( "[EnemyVisionWarning] heroes=%i wards=%i hero_in_range=%i ward_in_range=%i source=%i vision_fn=%i\n" ,
-				HeroCount , WardCount , HeroInRange , WardInRange , static_cast<int>( CachedSource ) , GetCurrentVisionRange != nullptr );
+			DEV_LOG( "[EnemyVisionWarning] spotted_mask=0x%X spotted_by_enemy=%i heroes=%i wards=%i hero_in_range=%i ward_in_range=%i source=%i\n" ,
+				TaggedVisibleMask , IsSpottedByEnemyTeam , HeroCount , WardCount , HeroInRange , WardInRange , static_cast<int>( CachedSource ) );
 			NextDiagnosticTime = CurrentTime + 3000ull;
 		}
 	}

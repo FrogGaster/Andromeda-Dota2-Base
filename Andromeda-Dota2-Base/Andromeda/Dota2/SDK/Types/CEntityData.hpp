@@ -70,6 +70,7 @@ public:
 	SCHEMA_OFFSET( "C_BaseEntity" , "m_iHealth" , m_iHealth , int32 );
 	SCHEMA_OFFSET( "C_BaseEntity" , "m_lifeState" , m_lifeState , uint8 );
 	SCHEMA_OFFSET( "C_BaseEntity" , "m_iTeamNum" , m_iTeamNum , uint8 );
+	SCHEMA_OFFSET( "C_BaseEntity" , "m_iTaggedAsVisibleByTeam" , m_iTaggedAsVisibleByTeam , int32 );
 };
 
 
