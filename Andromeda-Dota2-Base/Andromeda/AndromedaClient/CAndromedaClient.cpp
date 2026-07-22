@@ -82,13 +82,25 @@ namespace
 	auto IsObserverWard( CEntityInstance* pEntity , CEntityIdentity* pIdentity ) -> bool
 	{
 		if ( IsClassOrDerivedFrom( pEntity , XorStr( "CDOTA_NPC_Observer_Ward" ) ) ||
-			IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_NPC_Observer_Ward" ) ) )
+			IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_NPC_Observer_Ward" ) ) ||
+			IsClassOrDerivedFrom( pEntity , XorStr( "CDOTA_NPC_Observer_Ward_TrueSight" ) ) ||
+			IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_NPC_Observer_Ward_TrueSight" ) ) )
 		{
 			return true;
 		}
 
 		const auto szUnitName = pIdentity ? pIdentity->DesingerName().String() : nullptr;
-		return szUnitName && std::strcmp( szUnitName , XorStr( "npc_dota_observer_wards" ) ) == 0;
+		if ( szUnitName )
+		{
+			if ( std::strstr( szUnitName , XorStr( "observer_ward" ) ) ||
+				std::strstr( szUnitName , XorStr( "sentry_ward" ) ) ||
+				std::strstr( szUnitName , XorStr( "ward" ) ) )
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	auto IsInsideVisionRange( const Vector3& SourcePosition , const Vector3& TargetPosition , int VisionRange ) -> bool
@@ -369,8 +381,20 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 					continue;
 
 				const auto SourcePosition = pSceneNode->m_vecAbsOrigin();
-				const auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) :
+
+				if ( !std::isfinite( SourcePosition.m_x ) || !std::isfinite( SourcePosition.m_y ) ||
+					( SourcePosition.m_x == 0.f && SourcePosition.m_y == 0.f ) )
+				{
+					continue;
+				}
+
+				auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) :
 					( std::max )( pUnit->m_iDayTimeVisionRange() , pUnit->m_iNightTimeVisionRange() );
+
+				if ( VisionRange <= 0 )
+				{
+					VisionRange = IsWard ? 1600 : 1800;
+				}
 
 				if ( !IsInsideVisionRange( SourcePosition , LocalPosition , VisionRange ) )
 					continue;
