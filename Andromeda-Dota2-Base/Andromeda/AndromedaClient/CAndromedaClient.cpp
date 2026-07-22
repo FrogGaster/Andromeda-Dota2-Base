@@ -384,21 +384,21 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 			{
 				auto pEntity = pEntitySystem->GetBaseEntity<C_BaseEntity>( EntityIndex );
 
-				if ( !pEntity || pEntity == pLocalHero || pEntity->m_iTeamNum() != EnemyTeam ||
-					!IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC" ) ) )
+				if ( !pEntity || pEntity == pLocalHero || pEntity->m_iTeamNum() != EnemyTeam )
 				{
 					continue;
 				}
 
 				auto pIdentity = pEntity->pEntityIdentity();
 				const auto IsWard = IsObserverWard( pEntity , pIdentity );
-				const auto IsHero = !IsWard && IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Hero" ) );
+				const auto IsHero = !IsWard && ( IsClassOrDerivedFrom( pEntity , XorStr( "C_DOTA_BaseNPC_Hero" ) ) || IsClassOrDerivedFrom( pEntity , XorStr( "CDOTA_BaseNPC_Hero" ) ) );
 
 				if ( !IsWard && !IsHero )
 					continue;
 
 				auto pUnit = reinterpret_cast<C_DOTA_BaseNPC*>( pEntity );
 
+				// Check lifeState safely
 				if ( pUnit->m_lifeState() != 0 )
 					continue;
 
@@ -417,49 +417,48 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 				if ( !std::isfinite( SourcePosition.m_x ) || !std::isfinite( SourcePosition.m_y ) ||
 					( SourcePosition.m_x == 0.f && SourcePosition.m_y == 0.f ) )
 				{
+					// If position is not broadcast due to Fog/Invis, but entity exists in client entity system
+					if ( IsWard )
+						WardInRange = true;
+					else
+						HeroInRange = true;
 					continue;
 				}
 
-				auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) :
-					( std::max )( pUnit->m_iDayTimeVisionRange() , pUnit->m_iNightTimeVisionRange() );
+				auto VisionRange = GetCurrentVisionRange ? GetCurrentVisionRange( pUnit ) : 0;
+
+				if ( VisionRange <= 0 )
+				{
+					VisionRange = ( std::max )( pUnit->m_iDayTimeVisionRange() , pUnit->m_iNightTimeVisionRange() );
+				}
 
 				if ( VisionRange <= 0 )
 				{
 					VisionRange = IsWard ? 1600 : 1800;
 				}
 
-				if ( !IsInsideVisionRange( SourcePosition , LocalPosition , VisionRange ) )
-					continue;
-
-				if ( IsWard )
-					WardInRange = true;
-				else
-					HeroInRange = true;
+				if ( IsInsideVisionRange( SourcePosition , LocalPosition , VisionRange ) )
+				{
+					if ( IsWard )
+						WardInRange = true;
+					else
+						HeroInRange = true;
+				}
 			}
 		}
 
-		if ( IsSpottedByEnemyTeam )
+		if ( HeroInRange && WardInRange )
+			CachedSource = EVisionWarningSource::HeroAndWard;
+		else if ( WardInRange )
+			CachedSource = EVisionWarningSource::Ward;
+		else if ( HeroInRange )
+			CachedSource = EVisionWarningSource::Hero;
+		else if ( IsSpottedByEnemyTeam )
 		{
-			if ( IsTrueSightByEnemy && ( WardInRange || !HeroInRange ) )
-				CachedSource = EVisionWarningSource::Ward;
-			else if ( HeroInRange && WardInRange )
-				CachedSource = EVisionWarningSource::HeroAndWard;
-			else if ( WardInRange )
+			if ( IsTrueSightByEnemy )
 				CachedSource = EVisionWarningSource::Ward;
 			else
 				CachedSource = EVisionWarningSource::Hero;
-		}
-		else if ( HeroInRange && WardInRange )
-		{
-			CachedSource = EVisionWarningSource::HeroAndWard;
-		}
-		else if ( WardInRange )
-		{
-			CachedSource = EVisionWarningSource::Ward;
-		}
-		else if ( HeroInRange )
-		{
-			CachedSource = EVisionWarningSource::Hero;
 		}
 
 		if ( CachedSource != EVisionWarningSource::None )
