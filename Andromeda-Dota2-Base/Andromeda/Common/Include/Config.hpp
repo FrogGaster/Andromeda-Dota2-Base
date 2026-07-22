@@ -33,6 +33,6 @@
 #endif
 
 #ifndef DUMP_SCHEMA_ALL_OFFSET
-#define DUMP_SCHEMA_ALL_OFFSET		1
+#define DUMP_SCHEMA_ALL_OFFSET		0
 #endif
 
