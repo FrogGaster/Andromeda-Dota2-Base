@@ -66,7 +66,7 @@ auto CHook_Loader::InstallHooks() -> bool
 		if ( !Hook.m_Pattern.Search( Hook.m_bSkipError ) )
 		{
 			if ( !Hook.m_bSkipError )
-				DEV_LOG( "[error] Hook #1 -> '%s'\n" , Hook.m_Pattern.GetPatternName() );
+				DEV_LOG( "[error] Pattern search failed for hook -> '%s'\n" , Hook.m_Pattern.GetPatternName() );
 
 			if ( !Hook.m_bSkipIfNotFound )
 				return false;
@@ -78,12 +78,15 @@ auto CHook_Loader::InstallHooks() -> bool
 
 		if ( Status != MH_OK )
 		{
-			DEV_LOG( "[error] Hook #2 [%i] -> '%s'\n" , Status , Hook.m_Pattern.GetPatternName() );
+			DEV_LOG( "[error] MH_CreateHook failed [%i] -> '%s'\n" , Status , Hook.m_Pattern.GetPatternName() );
 			return false;
 		}
+
+		DEV_LOG( "[+] Hook created -> '%s' at %p\n" , Hook.m_Pattern.GetPatternName() , Hook.m_Pattern.GetFunction() );
 	}
 
-	MH_EnableHook( MH_ALL_HOOKS );
+	auto Status = MH_EnableHook( MH_ALL_HOOKS );
+	DEV_LOG( "[+] MH_EnableHook(MH_ALL_HOOKS) result: %i\n" , Status );
 
 	m_Hooks.clear();
 

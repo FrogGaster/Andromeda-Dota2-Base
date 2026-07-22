@@ -17,11 +17,13 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler( HWND hwnd , UINT msg , WP
 
 auto CAndromedaGUI::OnInit( IDXGISwapChain* pSwapChain ) -> void
 {
+	DEV_LOG( "[+] CAndromedaGUI::OnInit starting...\n" );
+
 	DXGI_SWAP_CHAIN_DESC SwapChainDesc;
 
 	if ( FAILED( pSwapChain->GetDevice( IID_PPV_ARGS( &m_pDevice ) ) ) )
 	{
-		DEV_LOG( "[error] CAndromedaGUI::OnInit: #1\n" );
+		DEV_LOG( "[error] CAndromedaGUI::OnInit: GetDevice failed!\n" );
 		return;
 	}
 
@@ -29,7 +31,7 @@ auto CAndromedaGUI::OnInit( IDXGISwapChain* pSwapChain ) -> void
 
 	if ( FAILED( pSwapChain->GetDesc( &SwapChainDesc ) ) )
 	{
-		DEV_LOG( "[error] CAndromedaGUI::OnInit: #2\n" );
+		DEV_LOG( "[error] CAndromedaGUI::OnInit: GetDesc failed!\n" );
 		return;
 	}
 
@@ -59,6 +61,7 @@ auto CAndromedaGUI::OnInit( IDXGISwapChain* pSwapChain ) -> void
 	m_WndProc_o = (WNDPROC)SetWindowLongPtrA( m_hCS2Window , GWLP_WNDPROC , (LONG_PTR)GUI_WndProc );
 
 	m_bInit = true;
+	DEV_LOG( "[+] CAndromedaGUI::OnInit completed successfully. HWND: %p\n" , m_hCS2Window );
 }
 
 auto CAndromedaGUI::OnDestroy() -> void

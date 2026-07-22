@@ -44,7 +44,7 @@ auto CDevLog::Init() -> void
 
 	const auto LogFile = GetDllDir() + LOG_FILE;
 
-	hLogFile = CreateFileA( LogFile.c_str() , GENERIC_WRITE , FILE_SHARE_READ , 0 , CREATE_ALWAYS , FILE_ATTRIBUTE_NORMAL , 0 );
+	hLogFile = CreateFileA( LogFile.c_str() , GENERIC_WRITE , FILE_SHARE_READ | FILE_SHARE_WRITE , 0 , CREATE_ALWAYS , FILE_ATTRIBUTE_NORMAL , 0 );
 }
 
 auto CDevLog::Destroy() -> void
@@ -62,7 +62,12 @@ auto CDevLog::Destroy() -> void
 	}
 #endif
 
-	CloseHandle( hLogFile );
+	if ( hLogFile != INVALID_HANDLE_VALUE )
+	{
+		FlushFileBuffers( hLogFile );
+		CloseHandle( hLogFile );
+		hLogFile = INVALID_HANDLE_VALUE;
+	}
 }
 
 auto CDevLog::AddLog( const char* fmt , ... ) -> void
@@ -71,16 +76,25 @@ auto CDevLog::AddLog( const char* fmt , ... ) -> void
 
 	char buff[4096] = { 0 };
 
+	SYSTEMTIME st;
+	GetLocalTime( &st );
+	int headerLen = sprintf_s( buff , sizeof( buff ) , "[%02d:%02d:%02d.%03d] " , st.wHour , st.wMinute , st.wSecond , st.wMilliseconds );
+
 	va_list args;
 	va_start( args , fmt );
-	vsnprintf( buff , sizeof( buff ) - 1 , fmt , args );
+	vsnprintf( buff + headerLen , sizeof( buff ) - headerLen - 1 , fmt , args );
 	va_end( args );
 
 #if ENABLE_CONSOLE_DEBUG == 1
 	printf( XorStr( "%s" ) , buff );
 #endif
 
-	WriteFile( hLogFile , (PVOID)buff , lstrlenA( buff ) , 0 , 0 );
+	if ( hLogFile != INVALID_HANDLE_VALUE )
+	{
+		DWORD bytesWritten = 0;
+		WriteFile( hLogFile , (PVOID)buff , static_cast<DWORD>( strlen( buff ) ) , &bytesWritten , 0 );
+		FlushFileBuffers( hLogFile );
+	}
 }
 
 auto GetDevLog() -> CDevLog*

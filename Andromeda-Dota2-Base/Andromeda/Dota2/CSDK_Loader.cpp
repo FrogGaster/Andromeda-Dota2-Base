@@ -29,12 +29,12 @@ auto CSDK_Loader::LoadSDK() -> bool
 {
 	// Wait for module load:
 	if ( !IsModuleLoad( NAVSYSTEM_DLL ) )
+	{
+		DEV_LOG( "[error] NAVSYSTEM_DLL module not loaded yet.\n" );
 		return false;
+	}
 
-	// Log SDK:
-#if LOG_SDK == 1
-	DEV_LOG( "[+] CSDK_Loader::LoadSDK:\n\n" );
-#endif
+	DEV_LOG( "[+] CSDK_Loader::LoadSDK starting...\n" );
 
 	// Interfaces:
 	auto pEngineToClient = SDK::Interfaces::EngineToClient();
@@ -52,21 +52,14 @@ auto CSDK_Loader::LoadSDK() -> bool
 	// Return if error #2
 	RETURN_FALSE_IF_POINTER_ERROR( ppCUserCmdArray );
 
-	// Log:
-#if LOG_SDK == 1
-	DEV_LOG( "\n" );
-#endif
-
-	// Log:
-#if LOG_SDK == 1
 	DEV_LOG( "[+] pEngineToClient: %p\n" , pEngineToClient );
 	DEV_LOG( "[+] pGameEntitySystem: %p\n" , pGameEntitySystem );
 	DEV_LOG( "[+] pSchemaSystem: %p\n" , pSchemaSystem );
-
 	DEV_LOG( "[+] ppCUserCmdArray: %p\n" , ppCUserCmdArray );
-#endif
 
+	DEV_LOG( "[+] Initializing SchemaOffsets...\n" );
 	GetSchemaOffset()->Init();
+	DEV_LOG( "[+] SchemaOffsets initialized.\n" );
 
 	return true;
 }

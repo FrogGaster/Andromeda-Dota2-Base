@@ -72,41 +72,52 @@ auto WINAPI CDllLauncher::StartCheatTheard( LPVOID lpThreadParameter ) -> DWORD
 	GetDevLog()->Init();
 	GetCrashLog()->InitVectorExceptionHandler();
 
-#if ENABLE_CONSOLE_DEBUG == 1
-	DEV_LOG( "[+] StartCheatThread: %s\n" , ansi_to_utf8( GetDllDir() ).c_str() );
-#endif
+	DEV_LOG( "[+] StartCheatThread initialized. DLL Dir: %s\n" , ansi_to_utf8( GetDllDir() ).c_str() );
+	DEV_LOG( "[+] Dota 2 Dir: %s\n" , ansi_to_utf8( GetDota2Dir() ).c_str() );
 
+	DEV_LOG( "[+] Initializing MinHook...\n" );
 	if ( !GetHook_Loader()->InitalizeMH() )
 	{
-		DEV_LOG( "[error] Hook_Loader::InitalizeMH\n" );
+		DEV_LOG( "[error] Hook_Loader::InitalizeMH failed!\n" );
 		return 0;
 	}
+	DEV_LOG( "[+] MinHook initialized successfully.\n" );
 
+	DEV_LOG( "[+] Installing first hook set...\n" );
 	if ( !GetHook_Loader()->InstallFirstHook() )
 	{
-		DEV_LOG( "[error] Hook_Loader::InstallFirstHook\n" );
+		DEV_LOG( "[error] Hook_Loader::InstallFirstHook failed!\n" );
 		return 0;
 	}
+	DEV_LOG( "[+] First hook set installed.\n" );
 
+	DEV_LOG( "[+] Initializing FunctionList...\n" );
 	if ( !GetFunctionList()->OnInit() )
 	{
-		DEV_LOG( "[error] FunctionList::OnInit\n" );
+		DEV_LOG( "[error] FunctionList::OnInit failed!\n" );
 		return 0;
 	}
+	DEV_LOG( "[+] FunctionList initialized.\n" );
 
+	DEV_LOG( "[+] Loading SDK...\n" );
 	if ( !GetSDK_Loader()->LoadSDK() )
 	{
-		DEV_LOG( "[error] CSDK_Loader::LoadSDK\n" );
+		DEV_LOG( "[error] CSDK_Loader::LoadSDK failed!\n" );
 		return 0;
 	}
+	DEV_LOG( "[+] SDK loaded.\n" );
 
+	DEV_LOG( "[+] Installing second hook set...\n" );
 	if ( !GetHook_Loader()->InstallSecondHook() )
 	{
-		DEV_LOG( "[error] Hook_Loader::InstallSecondHook\n" );
+		DEV_LOG( "[error] Hook_Loader::InstallSecondHook failed!\n" );
 		return 0;
 	}
+	DEV_LOG( "[+] Second hook set installed.\n" );
 
+	DEV_LOG( "[+] Initializing AndromedaClient...\n" );
 	GetAndromedaClient()->OnInit();
+	DEV_LOG( "[+] AndromedaClient initialized successfully.\n" );
 
 	return 0;
 }

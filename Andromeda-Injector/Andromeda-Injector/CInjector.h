@@ -11,11 +11,13 @@ class CInjector : Singleton<CInjector>
 {
 public:
 	auto Init() -> bool;
+	auto DryRun( const char* szProcessName ) -> bool;
 
 public:
 	auto InjectManualMap( const char* szProcessName ) -> bool;
 
 private:
+	auto InitPaths() -> bool;
 	auto GetPrivileges() -> bool;
 	auto GetProcessIdByName( const char* szName ) -> DWORD;
 

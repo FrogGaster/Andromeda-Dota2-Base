@@ -4,7 +4,13 @@
 
 auto Hook_OnRemoveEntity( CGameEntitySystem* pCGameEntitySystem , CEntityInstance* pInst , CHandle handle ) -> void
 {
-	DEV_LOG( "Hook_OnRemoveEntity: %p , %s\n" , pInst->pEntityIdentity() , pInst->GetSchemaClassBinding()->m_bindingName() );
+	if ( pInst )
+	{
+		auto pIdentity = pInst->pEntityIdentity();
+		auto pBinding = pInst->GetSchemaClassBinding();
+		const char* szBindingName = pBinding ? pBinding->m_bindingName() : "Unknown";
+		DEV_LOG( "Hook_OnRemoveEntity: %p , %s\n" , pIdentity , szBindingName ? szBindingName : "Unknown" );
+	}
 
 	return OnRemoveEntity_o( pCGameEntitySystem , pInst , handle );
 }
