@@ -336,9 +336,37 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 		NextVisionCheckTime = CurrentTime + 100ull;
 		CachedSource = EVisionWarningSource::None;
 
-		const auto TaggedVisibleMask = pLocalHero->m_iTaggedAsVisibleByTeam();
 		const auto EnemyTeamBit = ( 1 << EnemyTeam );
-		const auto IsSpottedByEnemyTeam = ( TaggedVisibleMask & EnemyTeamBit ) != 0;
+
+		static uint32_t ModifierMgrOffset = 0;
+		static uint32_t FoWPosOffset = 0;
+		static uint32_t TrueSightOffset = 0;
+		static bool SchemaInit = false;
+
+		if ( !SchemaInit )
+		{
+			ModifierMgrOffset = GetSchemaOffset()->GetOffset( XorStr( "C_DOTA_BaseNPC" ) , XorStr( "m_ModifierManager" ) );
+			FoWPosOffset = GetSchemaOffset()->GetOffset( XorStr( "CDOTA_ModifierManager" ) , XorStr( "m_nProvidesFOWPositionForTeam" ) );
+			TrueSightOffset = GetSchemaOffset()->GetOffset( XorStr( "CDOTA_ModifierManager" ) , XorStr( "m_nHasTruesightForTeam" ) );
+			SchemaInit = true;
+		}
+
+		uint16_t ProvidesFoWPosMask = 0;
+		uint16_t HasTrueSightMask = 0;
+
+		if ( ModifierMgrOffset && FoWPosOffset )
+		{
+			ProvidesFoWPosMask = *reinterpret_cast<uint16_t*>( reinterpret_cast<uint64_t>( pLocalHero ) + ModifierMgrOffset + FoWPosOffset );
+		}
+
+		if ( ModifierMgrOffset && TrueSightOffset )
+		{
+			HasTrueSightMask = *reinterpret_cast<uint16_t*>( reinterpret_cast<uint64_t>( pLocalHero ) + ModifierMgrOffset + TrueSightOffset );
+		}
+
+		const auto IsProvidesFoWToEnemy = ( ProvidesFoWPosMask & EnemyTeamBit ) != 0;
+		const auto IsTrueSightByEnemy = ( HasTrueSightMask & EnemyTeamBit ) != 0;
+		const auto IsSpottedByEnemyTeam = IsProvidesFoWToEnemy || IsTrueSightByEnemy;
 
 		auto HeroInRange = false;
 		auto WardInRange = false;
@@ -412,7 +440,9 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 
 		if ( IsSpottedByEnemyTeam )
 		{
-			if ( HeroInRange && WardInRange )
+			if ( IsTrueSightByEnemy && ( WardInRange || !HeroInRange ) )
+				CachedSource = EVisionWarningSource::Ward;
+			else if ( HeroInRange && WardInRange )
 				CachedSource = EVisionWarningSource::HeroAndWard;
 			else if ( WardInRange )
 				CachedSource = EVisionWarningSource::Ward;
@@ -444,8 +474,8 @@ auto CAndromedaClient::RenderEnemyVisionWarning() -> void
 
 		if ( CurrentTime >= NextDiagnosticTime )
 		{
-			DEV_LOG( "[EnemyVisionWarning] spotted_mask=0x%X spotted_by_enemy=%i heroes=%i wards=%i hero_in_range=%i ward_in_range=%i source=%i\n" ,
-				TaggedVisibleMask , IsSpottedByEnemyTeam , HeroCount , WardCount , HeroInRange , WardInRange , static_cast<int>( CachedSource ) );
+			DEV_LOG( "[EnemyVisionWarning] fow_mask=0x%X truesight_mask=0x%X spotted=%i heroes=%i wards=%i hero_in_range=%i ward_in_range=%i source=%i\n" ,
+				ProvidesFoWPosMask , HasTrueSightMask , IsSpottedByEnemyTeam , HeroCount , WardCount , HeroInRange , WardInRange , static_cast<int>( CachedSource ) );
 			NextDiagnosticTime = CurrentTime + 3000ull;
 		}
 	}
